@@ -1,0 +1,67 @@
+name: CI
+
+# While the repository is private, Actions minutes are limited (Free plan: 2 000/month, Windows x2, macOS x10),
+# so every push/PR runs Linux only and Windows runs weekly; macOS is manual. Once public (unlimited minutes),
+# run all three on every push: set `os` below to the full list unconditionally.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "LICENSE", ".github/dependabot.yml"]
+  pull_request:
+    paths-ignore: ["**.md", "LICENSE", ".github/dependabot.yml"]
+  schedule:
+    - cron: "0 4 * * 1" # weekly: Linux + Windows
+  workflow_dispatch:
+    inputs:
+      all-platforms:
+        description: Also run Windows and macOS
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(
+          (github.event_name == 'workflow_dispatch' && inputs.all-platforms) && '["ubuntu-latest","windows-latest","macos-latest"]' ||
+          github.event_name == 'schedule' && '["ubuntu-latest","windows-latest"]' ||
+          '["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Build (warnings are errors)
+        run: dotnet build Bildverk.slnx -c Release
+
+      - name: Test
+        run: dotnet test --project tests/Bildverk.Tests -c Release --no-build
+
+      - name: Pack
+        run: dotnet pack src/Bildverk -c Release --no-build -o artifacts
+
+      - name: Vulnerable packages
+        shell: bash
+        run: |
+          dotnet list src/Bildverk package --vulnerable --include-transitive | tee vulnerable.txt
+          ! grep -q "has the following vulnerable packages" vulnerable.txt
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: nupkg
+          path: artifacts/*

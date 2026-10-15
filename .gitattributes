@@ -1,0 +1,9 @@
+* text=auto
+*.cs text diff=csharp
+*.razor text
+*.jpg binary
+*.png binary
+*.webp binary
+*.avif binary
+*.gif binary
+*.nupkg binary

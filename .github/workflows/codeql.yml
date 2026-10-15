@@ -1,0 +1,54 @@
+name: CodeQL
+
+# Weekly + manual while private (to save Actions minutes). When public, add `push: branches: [main]` and `pull_request:`.
+on:
+  schedule:
+    - cron: "0 3 * * 2"
+  workflow_dispatch:
+
+permissions:
+  actions: read          # needed on private repositories
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: security-extended
+
+      - name: Build
+        run: dotnet build src/Bildverk -c Release
+
+      # Private repos can't upload to code scanning without paid Advanced Security, so while private the
+      # results are kept as an artifact and any finding fails the job. Public repos upload as usual.
+      - uses: github/codeql-action/analyze@v3
+        with:
+          upload: ${{ github.event.repository.private && 'never' || 'always' }}
+          output: sarif-results
+          upload-database: ${{ !github.event.repository.private }}
+
+      - name: Fail on findings
+        shell: bash
+        run: |
+          count=$(jq '[.runs[].results[]] | length' sarif-results/*.sarif)
+          echo "CodeQL findings: $count"
+          jq -r '.runs[].results[] | "\(.ruleId): \(.message.text) (\(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine))"' sarif-results/*.sarif
+          [ "$count" -eq 0 ]
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codeql-sarif
+          path: sarif-results

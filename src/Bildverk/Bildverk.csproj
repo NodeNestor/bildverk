@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+    <!-- Recommended rules everywhere, every rule in the security and reliability categories. -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <AnalysisModeSecurity>All</AnalysisModeSecurity>
+    <AnalysisModeReliability>All</AnalysisModeReliability>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>Bildverk</PackageId>
+    <Version>0.1.0</Version>
+    <Description>Self-hosted, open-source image processing middleware for ASP.NET Core. Resize, crop, pad and re-encode images on the fly from query strings (?width=1920&amp;height=600&amp;rmode=crop&amp;quality=80) with a configurable disk cache. Powered by libvips.</Description>
+    <PackageTags>image;resize;crop;thumbnail;middleware;aspnetcore;blazor;libvips;cache;webp;avif</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Authors>NodeNestor</Authors>
+    <Copyright>Copyright (c) 2026 NodeNestor</Copyright>
+    <PackageProjectUrl>https://github.com/NodeNestor/bildverk</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/NodeNestor/bildverk</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>https://github.com/NodeNestor/bildverk/blob/main/CHANGELOG.md</PackageReleaseNotes>
+
+    <!-- SourceLink + symbols: debuggers can step into the exact source of a published version. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="NetVips" Version="3.2.0" />
+    <PackageReference Include="NetVips.Native" Version="8.18.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <InternalsVisibleTo Include="Bildverk.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # NetVips.Native carries libvips and every codec: security fixes arrive through it.
+  - package-ecosystem: nuget
+    directories: ["/src/Bildverk", "/tests/Bildverk.Tests", "/bench/*", "/samples/*"]
+    schedule:
+      interval: monthly # weekly once public; monthly + one grouped PR saves Actions minutes while private
+    ignore:
+      # bench/ImageSharpHost + bench/Codecs compare against ImageSharp 3.x on purpose
+      # (newer versions refuse to build without a paid licence key).
+      - dependency-name: "SixLabors.*"
+    groups:
+      all-nuget:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      all-actions:
+        patterns: ["*"]

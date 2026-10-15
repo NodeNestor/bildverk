@@ -1,0 +1,10 @@
+html, body { font-family: system-ui, sans-serif; margin: 0; background: #fafafa; color: #222; }
+main, body > div { padding: 0 16px; }
+h1 { margin-top: 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; padding-bottom: 32px; }
+figure { margin: 0; background: #fff; border: 1px solid #e3e3e3; border-radius: 8px; overflow: hidden; }
+figure:first-child { grid-column: 1 / -1; }
+figure img { display: block; width: 100%; height: auto; }
+figcaption { padding: 8px 12px; font-size: 13px; line-height: 1.4; }
+code { font-size: 12px; word-break: break-all; }
+h1:focus { outline: none; }
