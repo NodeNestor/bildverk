@@ -30,6 +30,10 @@ First release.
 - Metadata stripping.
 - Safe cache paths.
 - Startup warnings for risky configurations.
+- Queue limit for unprocessed images: 503 with `Retry-After` once it's full.
+- Path spellings are normalized, so they can't multiply cache entries.
+- Images reach the encoders only as RGB or RGBA.
+- TIFF input is opt-in.
 
 **Platforms**
 - .NET 8 and .NET 10, on Windows, Linux and macOS.

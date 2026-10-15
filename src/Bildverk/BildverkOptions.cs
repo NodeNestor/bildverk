@@ -9,7 +9,7 @@ public sealed class BildverkOptions
 {
     public const string SectionName = "Bildverk";
 
-    public static readonly IReadOnlyList<string> DefaultExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".tif", ".tiff"];
+    public static readonly IReadOnlyList<string> DefaultExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"];
 
     /// <summary>
     /// File extensions the middleware will process. Anything else passes through untouched.
@@ -155,13 +155,13 @@ public sealed class LimitsOptions
     /// <summary>Same as <see cref="AllowedWidths"/>, for heights.</summary>
     public List<int>? AllowedHeights { get; set; }
 
-    public static readonly IReadOnlyList<string> DefaultInputFormats = ["jpeg", "png", "webp", "gif", "avif", "tiff"];
+    public static readonly IReadOnlyList<string> DefaultInputFormats = ["jpeg", "png", "webp", "gif", "avif"];
 
     /// <summary>
-    /// Source formats that may be decoded: jpeg, png, webp, gif, avif (= heif), tiff. Null means
+    /// Source formats that may be decoded: jpeg, png, webp, gif, avif (= heif) and, opt-in, tiff. Null means
     /// <see cref="DefaultInputFormats"/>. The format is detected from the file's first bytes, not its extension,
-    /// and anything else is rejected (415) before a decoder runs. Drop "tiff" if you don't need it: of the
-    /// bundled codecs it has the longest security history.
+    /// and anything else is rejected (415) before a decoder runs. TIFF is off by default: it is rare on the web
+    /// and has the longest security history of the bundled codecs (to enable it, also add ".tif" to Extensions).
     /// </summary>
     public List<string>? AllowedInputFormats { get; set; }
 
@@ -177,7 +177,13 @@ public sealed class LimitsOptions
     /// <summary>Source files larger than this are rejected.</summary>
     public long MaxSourceBytes { get; set; } = 100L * 1024 * 1024;
 
-    /// <summary>How many images may be processed at the same time. Requires a restart to change.</summary>
+    /// <summary>
+    /// How many requests may wait for a processing slot. Beyond this, requests for not-yet-cached images get
+    /// 503 with Retry-After instead of piling up. Cached images are never affected.
+    /// </summary>
+    public int MaxQueuedRequests { get; set; } = 1000;
+
+    /// <summary>How many images may be processed at the same time (null = number of CPU cores). Requires a restart to change.</summary>
     public int? MaxConcurrentProcessing { get; set; }
 
     /// <summary><see cref="MaxConcurrentProcessing"/>, or the number of CPU cores when it is not set.</summary>

@@ -74,7 +74,13 @@ public sealed class VipsImageProcessor : IImageProcessor
         if (request.Timeout > TimeSpan.Zero) deadline.CancelAfter(request.Timeout);
         try
         {
-            return ProcessCore(bytes, request, deadline.Token);
+            var result = ProcessCore(bytes, request, deadline.Token);
+
+            // The kill flag stops decoding and resizing, but an encoder that is already running finishes its image.
+            // Over the limit is over the limit: discard the result so the rule is the same for every format.
+            if (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                throw new ImageProcessingException(422, $"Processing took longer than the {request.Timeout.TotalSeconds:0.#} s limit.");
+            return result;
         }
         catch (VipsException ex) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
@@ -180,6 +186,12 @@ public sealed class VipsImageProcessor : IImageProcessor
 
         if (image.Interpretation != Enums.Interpretation.Srgb)
             image = Swap(image, image.Colourspace(Enums.Interpretation.Srgb));
+
+        // Encoders only ever see RGB or RGBA. Odd channel counts (e.g. multi-band TIFFs) have crashed
+        // libvips encoders before (CVE-2025-29769); extra channels are dropped here as a second fence.
+        if (image.Bands > 4) image = Swap(image, image.ExtractBand(0, n: 4));
+        if (image.Bands is not (3 or 4))
+            throw new ImageProcessingException(422, $"Unsupported channel layout ({image.Bands} channels).");
 
         return image.Format == Enums.BandFormat.Uchar ? image : Swap(image, image.Cast(Enums.BandFormat.Uchar));
     }

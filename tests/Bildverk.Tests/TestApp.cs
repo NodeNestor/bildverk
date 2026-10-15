@@ -141,6 +141,12 @@ internal static class TestImages
 
         File.WriteAllText(Path.Combine(dir, "broken.jpg"), "this is not a jpeg");
 
+        // Unusual channel layouts: 5-band TIFF (multiband) and 2-band grey + alpha PNG.
+        using (var five = Image.Black(64, 48, bands: 5).NewFromImage(10, 200, 30, 255, 77))
+            five.WriteToFile(Path.Combine(dir, "multiband.tif"));
+        using (var greyAlpha = Image.Black(64, 48, bands: 2).NewFromImage(120, 200).Copy(interpretation: Enums.Interpretation.Bw))
+            greyAlpha.WriteToFile(Path.Combine(dir, "grey-alpha.png"));
+
         // Extreme aspect ratio: 4000 x 4. Proportional resizes of it explode without output limits.
         using (var strip = Image.Black(4000, 4, bands: 3).NewFromImage(90, 90, 90))
             strip.WriteToFile(Path.Combine(dir, "strip.png"));

@@ -202,6 +202,112 @@ public sealed class SecurityTests
         Assert.True(img.Width <= 1000, $"{img.Width}x{img.Height}");
     }
 
+    // ---- Signed URLs can't be extended or redirected (cf. Thumbor CVE-2026-53501) ----
+
+    [Theory]
+    [InlineData("&width=4000")]        // a second width: the last one would win
+    [InlineData("&rmode=stretch")]     // an extra command
+    [InlineData("&format=png")]
+    public async Task Signed_urls_reject_appended_commands(string appended)
+    {
+        await using var app = await TestApp.StartAsync(new() { ["Bildverk:Security:HmacKey"] = "k-0123456789abcdef0123456789abcdef" });
+        var signed = app.Services.GetRequiredService<Bildverk.Security.IBildverkUrlSigner>().Sign("/img/halves.jpg?width=100");
+
+        Assert.Equal(HttpStatusCode.OK, (await app.GetAsync(signed)).Response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.GetAsync(signed + appended)).Response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.GetAsync(signed.Replace("/img/halves.jpg", "/img/alpha.png", StringComparison.Ordinal))).Response.StatusCode);
+    }
+
+    // ---- One cache entry per file, however the path is spelled ----
+
+    [Fact]
+    public async Task Path_spellings_of_the_same_file_share_one_cache_entry()
+    {
+        await using var app = await TestApp.StartAsync();
+
+        await app.GetAsync("/img/halves.jpg?width=100");
+        await app.GetAsync("/img//halves.jpg?width=100");
+        var (upper, _) = await app.GetAsync("/IMG/HALVES.JPG?width=100");
+
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
+            Assert.Equal(HttpStatusCode.OK, upper.StatusCode);   // same file on a case-insensitive file system...
+        else
+            Assert.Equal(HttpStatusCode.NotFound, upper.StatusCode); // ...a different (missing) file on Linux
+        Assert.Equal(1, app.Processor.Calls);                   // either way: processed once, cached once
+    }
+
+    [Fact]
+    public async Task Backslashes_in_paths_are_rejected()
+    {
+        await using var app = await TestApp.StartAsync();
+
+        var (response, _) = await app.GetAsync("/img%5Chalves.jpg?width=10");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ---- Load: waiting work is capped, cached images are unaffected ----
+
+    [Fact]
+    public async Task Too_many_waiting_requests_get_503_with_retry_after()
+    {
+        await using var app = await TestApp.StartAsync(new()
+        {
+            ["Bildverk:Limits:MaxConcurrentProcessing"] = "1",
+            ["Bildverk:Limits:MaxQueuedRequests"] = "2",
+        });
+        await app.GetAsync("/img/halves.jpg?width=50"); // cached before the flood
+        app.Processor.Delay = TimeSpan.FromMilliseconds(400);
+
+        var flood = await Task.WhenAll(Enumerable.Range(0, 8).Select(i => app.GetAsync($"/img/halves.jpg?width={100 + i}")));
+        var (cached, _) = await app.GetAsync("/img/halves.jpg?width=50");
+
+        var busy = flood.Where(r => r.Response.StatusCode == HttpStatusCode.ServiceUnavailable).ToList();
+        Assert.NotEmpty(busy);
+        Assert.All(busy, r => Assert.NotNull(r.Response.Headers.RetryAfter));
+        Assert.True(flood.Count(r => r.Response.StatusCode == HttpStatusCode.OK) >= 3); // 1 running + 2 queued
+        Assert.Equal(HttpStatusCode.OK, cached.StatusCode);
+    }
+
+    // ---- TIFF is opt-in; odd channel layouts never reach an encoder ----
+
+    [Fact]
+    public async Task Tiff_is_off_by_default()
+    {
+        await using var app = await TestApp.StartAsync();
+
+        var (response, _) = await app.GetAsync("/img/multiband.tif?width=32&format=png");
+
+        // Not ours: static files serve the original untouched, no decoder ever runs on it.
+        Assert.Equal(0, app.Processor.Calls);
+        Assert.NotEqual("image/png", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Theory]
+    [InlineData("/img/multiband.tif", "avif")]
+    [InlineData("/img/multiband.tif", "webp")]
+    [InlineData("/img/multiband.tif", "jpg")]
+    [InlineData("/img/grey-alpha.png", "avif")]
+    [InlineData("/img/grey-alpha.png", "webp")]
+    [InlineData("/img/grey-alpha.png", "jpg")]
+    public async Task Unusual_channel_layouts_become_rgb_or_rgba(string path, string format)
+    {
+        await using var app = await TestApp.StartAsync(new()
+        {
+            ["Bildverk:Extensions:0"] = ".tif",
+            ["Bildverk:Extensions:1"] = ".png",
+            ["Bildverk:Limits:AllowedInputFormats:0"] = "tiff",
+            ["Bildverk:Limits:AllowedInputFormats:1"] = "png",
+        });
+
+        var (response, body) = await app.GetAsync($"{path}?width=32&format={format}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var img = Image.NewFromBuffer(body);
+        Assert.Contains(img.Bands, new[] { 3, 4 });
+        Assert.Equal(32, img.Width);
+    }
+
     // ---- Query abuse: absurd values never crash or slip through ----
 
     [Theory]

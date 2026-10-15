@@ -45,9 +45,9 @@ internal sealed class BildverkMiddleware(
             return;
         }
 
-        // Null bytes and other control characters are never part of a real file name, and some
-        // file APIs throw on them: answer 400 instead of letting them reach the file system.
-        if (path.AsSpan().IndexOfAnyInRange('\0', '\u001f') >= 0 || path.Contains('\u007f'))
+        // Null bytes, other control characters and backslashes are never part of a real image URL. Some file
+        // APIs throw on them, and backslashes would be a second spelling of the same file: answer 400.
+        if (path.AsSpan().IndexOfAnyInRange('\0', '\u001f') >= 0 || path.Contains('\u007f') || path.Contains('\\'))
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
@@ -106,7 +106,11 @@ internal sealed class BildverkMiddleware(
         {
             // Escaped forms only: decoded paths could carry newlines and forge log lines.
             Log.Rejected(logger, request.Path.ToUriComponent(), request.QueryString.ToUriComponent(), ex.Message);
-            if (!context.Response.HasStarted) context.Response.StatusCode = ex.StatusCode;
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = ex.StatusCode;
+                if (ex.StatusCode == StatusCodes.Status503ServiceUnavailable) context.Response.Headers.RetryAfter = "2";
+            }
         }
     }
 
@@ -222,6 +226,16 @@ internal sealed class BildverkMiddleware(
         return null;
     }
 
+    /// <summary>
+    /// One spelling per file: repeated slashes collapsed, and on case-insensitive file systems (Windows, macOS)
+    /// lower-cased. Otherwise /a.jpg, /A.JPG and //a.jpg would each create their own cached variants.
+    /// </summary>
+    internal static string KeyPath(string path)
+    {
+        while (path.Contains("//", StringComparison.Ordinal)) path = path.Replace("//", "/", StringComparison.Ordinal);
+        return OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? path.ToLowerInvariant() : path;
+    }
+
     internal static string CacheKey(string path, ImageCommands effective, int hashLength, EncoderSettings? encoder = null) =>
         CacheKeyFor(path, effective, hashLength, encoder).Key;
 
@@ -230,18 +244,38 @@ internal sealed class BildverkMiddleware(
     {
         // Encoder settings change the output bytes, so they are part of the key.
         var e = encoder?.KeyPart(effective.Format ?? OutputFormat.Jpeg) ?? "";
-        var canonical = $"v{ProcessorVersion}|{path}?{CommandParser.Canonicalize(effective)}{(e.Length > 0 ? "|" + e : "")}";
+        var canonical = $"v{ProcessorVersion}|{KeyPath(path)}?{CommandParser.Canonicalize(effective)}{(e.Length > 0 ? "|" + e : "")}";
         var hex = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
         return (hex[..Math.Clamp(hashLength, 16, 64)], canonical);
     }
 }
 
 /// <summary>Caps how many images are processed at once (<see cref="LimitsOptions.MaxConcurrentProcessing"/>).</summary>
-internal sealed class ProcessingGate(IOptions<BildverkOptions> options) : IDisposable
+internal sealed class ProcessingGate(IOptions<BildverkOptions> options, IOptionsMonitor<BildverkOptions> current) : IDisposable
 {
     private readonly SemaphoreSlim _semaphore = new(Math.Max(1, options.Value.Limits.EffectiveMaxConcurrentProcessing));
+    private int _waiting;
 
-    public Task WaitAsync(CancellationToken cancellationToken) => _semaphore.WaitAsync(cancellationToken);
+    /// <summary>Waits for a slot; refuses with 503 when <see cref="LimitsOptions.MaxQueuedRequests"/> are already waiting.</summary>
+    public async Task WaitAsync(CancellationToken cancellationToken)
+    {
+        if (_semaphore.Wait(0, CancellationToken.None)) return; // free slot: no queueing
+
+        if (Interlocked.Increment(ref _waiting) > current.CurrentValue.Limits.MaxQueuedRequests)
+        {
+            Interlocked.Decrement(ref _waiting);
+            throw new ImageProcessingException(StatusCodes.Status503ServiceUnavailable, "Too many images are waiting to be processed.");
+        }
+
+        try
+        {
+            await _semaphore.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _waiting);
+        }
+    }
 
     public void Release() => _semaphore.Release();
 

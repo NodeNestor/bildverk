@@ -18,7 +18,12 @@ var workers = args.Length > 3 ? int.Parse(args[3]) : 12;
 NetVips.NetVips.BlockUntrusted = true;
 NetVips.NetVips.Concurrency = 1;
 var processor = new VipsImageProcessor();
-var limits = new LimitsOptions { MaxSourcePixels = 50_000_000, MaxSourceBytes = 50L * 1024 * 1024 };
+var limits = new LimitsOptions
+{
+    MaxSourcePixels = 50_000_000,
+    MaxSourceBytes = 50L * 1024 * 1024,
+    AllowedInputFormats = ["jpeg", "png", "webp", "gif", "avif", "tiff"], // fuzz every decoder, including opt-in TIFF
+};
 
 // Seeds: every allowed input format, small enough to keep iterations fast.
 var seeds = new List<(string Name, byte[] Data)>();

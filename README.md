@@ -8,7 +8,7 @@ Self-hosted image processing middleware for ASP.NET Core. Resize, crop and conve
 
 - **Any ASP.NET Core app:** Blazor (Server, Web App, hosted WASM), MVC, Razor Pages, minimal APIs.
 - **Compatible URLs:** the same query syntax as ImageSharp.Web and Umbraco, so existing URLs keep working.
-- **Formats:** JPEG, PNG, WebP, AVIF, GIF and TIFF, with automatic AVIF/WebP for browsers that support them.
+- **Formats:** JPEG, PNG, WebP, AVIF and GIF (TIFF opt-in), with automatic AVIF/WebP for browsers that support them.
 - **Fast:** powered by [libvips](https://www.libvips.org/). See [performance](https://github.com/NodeNestor/bildverk/blob/main/docs/performance.md).
 - **Open:** MIT licensed, .NET 8 and 10, Windows, Linux and macOS (x64 and ARM64).
 
@@ -110,7 +110,7 @@ All keys are optional; these are the defaults. Settings apply without a restart,
 
 ```jsonc
 "Bildverk": {
-  "Extensions": [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".tif", ".tiff"],
+  "Extensions": [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"],
   "Source": {
     "Root": null                        // originals folder; null = wwwroot (restart)
   },
@@ -130,11 +130,12 @@ All keys are optional; these are the defaults. Settings apply without a restart,
     "MaxHeight": 4000,
     "AllowedWidths": null,              // e.g. [320, 640, 1280]; requests snap up to these
     "AllowedHeights": null,
-    "AllowedInputFormats": null,        // default ["jpeg", "png", "webp", "gif", "avif", "tiff"]
+    "AllowedInputFormats": null,        // default ["jpeg", "png", "webp", "gif", "avif"]; "tiff" is opt-in
     "MaxSourcePixels": 100000000,       // larger originals are refused (413)
     "MaxSourceBytes": 104857600,
     "ProcessingTimeout": "00:00:30",    // one image may take at most this long (422)
     "MaxConcurrentProcessing": null,    // images processed at once; null = CPU cores (restart)
+    "MaxQueuedRequests": 1000,          // waiting beyond this gets 503 + Retry-After; cached images unaffected
     "ThreadsPerImage": 1                // libvips threads per image; 1 is fastest for servers (restart)
   },
   "Defaults": {
@@ -194,6 +195,7 @@ Register your own implementation before or after `AddBildverk()`:
 - **Restrict variants:** set `Security:HmacKey` or `Limits:AllowedWidths`, so visitors can't create endless size variants. Bildverk warns at startup when neither is set.
 - **Size the cache:** set `Cache:MaxSizeMB` to fit your disk.
 - **Formats:** remove input formats you don't serve from `Limits:AllowedInputFormats`.
+- **User uploads:** if visitors can upload images, lower `Limits:MaxSourcePixels`/`MaxSourceBytes` to what you expect. Each image being processed holds its file in memory.
 - **More than one server:** put a CDN or shared storage in front.
 
 What Bildverk protects against, and how, is described in [docs/security.md](https://github.com/NodeNestor/bildverk/blob/main/docs/security.md).

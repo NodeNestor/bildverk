@@ -11,9 +11,10 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md).
 ## Untrusted images
 
 - **The format is detected from the file's bytes, not its name.** Only formats in `Limits:AllowedInputFormats` reach a decoder: JPEG, PNG, WebP, GIF, AVIF and TIFF by default. An SVG renamed to `.jpg` is rejected (415) before any parser sees it, and libvips' own "untrusted" loaders are blocked as well.
-- **TIFF is optional.** Remove `tiff` if you don't need it: of the bundled codecs, it has the longest security history.
+- **TIFF is opt-in.** It is rare on the web and was behind most libvips security fixes in 2025–2026, so it is off by default. To enable it, add it to `AllowedInputFormats` and `.tif` to `Extensions`.
+- **Encoders only see RGB or RGBA.** Images with unusual channel counts, such as multi-band TIFFs, are normalized first. That kind of input once crashed a libvips encoder (CVE-2025-29769).
 - **Size limits come first.** Pixel count and file size are checked from the header, before decoding. A decompression bomb gets 413, a corrupt image 422, and something that isn't an image 415.
-- **Slow images are stopped.** Processing stops after `Limits:ProcessingTimeout` (30 s), so a deliberately slow file can't hold a worker. Background re-encodes have their own `Optimize:Timeout`.
+- **Slow images are stopped.** Decoding and resizing are aborted after `Limits:ProcessingTimeout` (30 s), so a deliberately slow file can't hold a worker. An encoder that has already started finishes its current image, but the result is discarded (422). Background re-encodes have their own `Optimize:Timeout`.
 
 ## Output size
 
@@ -29,7 +30,8 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md).
   - NTFS streams (`a.jpg:x`)
   - device names (`con.jpg`)
   - hidden files
-- **Control characters** in a path get 400.
+- **Control characters and backslashes** in a path get 400.
+- **One cache entry per file.** Repeated slashes are collapsed and, on case-insensitive file systems (Windows, macOS), paths are compared without case. So `/a.jpg`, `/A.JPG` and `//a.jpg` can't be used to multiply variants.
 
 ## The cache
 
@@ -46,7 +48,15 @@ Each different `width` is a new file and new processing work. Pick one or more o
 - **`Limits:AllowedWidths` / `AllowedHeights`:** requests snap to a fixed list, so only a few variants per image can exist.
 - **`Cache:MaxSizeMB`** (default 10 GB) keeps disk use bounded in any case.
 - **CPU is always bounded** (`MaxConcurrentProcessing` and the timeouts).
+- **Waiting work is capped.** Beyond `Limits:MaxQueuedRequests`, requests for images not yet cached get 503 with `Retry-After` instead of piling up. Cached images are always served.
 - **Startup warning:** Bildverk logs a warning when the configuration leaves this open.
+
+## Custom image sources
+
+Bildverk itself only reads local files. If you write an `IImageSource` that fetches originals over HTTP or from storage, the request path becomes input to that fetch, so:
+
+- **Map paths to a fixed set of locations.** Never use the path as a URL or host name, or Bildverk becomes a proxy into your internal network. That is the server-side request forgery (SSRF) behind imgproxy CVE-2023-30019 and CVE-2025-24354.
+- **Return `null` for anything unexpected.** Bildverk then answers 404.
 
 ## Privacy
 
