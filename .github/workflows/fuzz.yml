@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
@@ -31,7 +31,7 @@ jobs:
       - name: Fuzz
         run: dotnet bench/Fuzz/bin/Release/net10.0/Fuzz.dll - fuzz-out ${{ github.event.inputs.seconds || '600' }} 4 2>/dev/null
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: fuzz-findings
