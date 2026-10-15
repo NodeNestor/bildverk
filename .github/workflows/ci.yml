@@ -1,22 +1,12 @@
 name: CI
 
-# While the repository is private, Actions minutes are limited (Free plan: 2 000/month, Windows x2, macOS x10),
-# so every push/PR runs Linux only and Windows runs weekly; macOS is manual. Once public (unlimited minutes),
-# run all three on every push: set `os` below to the full list unconditionally.
 on:
   push:
     branches: [main]
     paths-ignore: ["**.md", "LICENSE", ".github/dependabot.yml"]
   pull_request:
     paths-ignore: ["**.md", "LICENSE", ".github/dependabot.yml"]
-  schedule:
-    - cron: "0 4 * * 1" # weekly: Linux + Windows
   workflow_dispatch:
-    inputs:
-      all-platforms:
-        description: Also run Windows and macOS
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -31,10 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(
-          (github.event_name == 'workflow_dispatch' && inputs.all-platforms) && '["ubuntu-latest","windows-latest","macos-latest"]' ||
-          github.event_name == 'schedule' && '["ubuntu-latest","windows-latest"]' ||
-          '["ubuntu-latest"]') }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7

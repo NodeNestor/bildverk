@@ -1,15 +1,14 @@
 name: Fuzz
 
 # Mutation fuzzing of the processing path (bench/Fuzz). Fails and uploads the inputs on any finding.
-# Weekly while private (Actions minutes); make it nightly ("0 2 * * *") once public.
 on:
   schedule:
-    - cron: "0 2 * * 3"
+    - cron: "0 2 * * *" # nightly
   workflow_dispatch:
     inputs:
       seconds:
         description: Fuzzing time in seconds
-        default: "600"
+        default: "900"
 
 permissions:
   contents: read
@@ -29,7 +28,7 @@ jobs:
         run: dotnet build bench/Fuzz -c Release
 
       - name: Fuzz
-        run: dotnet bench/Fuzz/bin/Release/net10.0/Fuzz.dll - fuzz-out ${{ github.event.inputs.seconds || '600' }} 4 2>/dev/null
+        run: dotnet bench/Fuzz/bin/Release/net10.0/Fuzz.dll - fuzz-out ${{ github.event.inputs.seconds || '900' }} 4 2>/dev/null
 
       - uses: actions/upload-artifact@v7
         if: failure()

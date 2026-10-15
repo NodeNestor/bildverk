@@ -4,7 +4,7 @@ updates:
   - package-ecosystem: nuget
     directories: ["/src/Bildverk", "/tests/Bildverk.Tests", "/bench/*", "/samples/*"]
     schedule:
-      interval: monthly # weekly once public; monthly + one grouped PR saves Actions minutes while private
+      interval: weekly
     ignore:
       # bench/ImageSharpHost + bench/Codecs compare against ImageSharp 3.x on purpose
       # (newer versions refuse to build without a paid licence key).
@@ -16,7 +16,7 @@ updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       all-actions:
         patterns: ["*"]

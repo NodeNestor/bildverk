@@ -1,7 +1,9 @@
 name: CodeQL
 
-# Weekly + manual while private (to save Actions minutes). When public, add `push: branches: [main]` and `pull_request:`.
 on:
+  push:
+    branches: [main]
+  pull_request:
   schedule:
     - cron: "0 3 * * 2"
   workflow_dispatch:
