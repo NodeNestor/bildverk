@@ -22,6 +22,6 @@ Only the latest minor release gets security fixes.
 
 ## What is already in place
 
-See the "Security" section of the README. Every item there has a test in
-`tests/Bildverk.Tests/SecurityTests.cs`, the processing path is fuzzed nightly (`bench/Fuzz`), and the code
+See [docs/security.md](docs/security.md). Every protection there has a test in
+`tests/Bildverk.Tests/SecurityTests.cs`, the processing path is fuzzed weekly in CI (`bench/Fuzz`), and the code
 is scanned by CodeQL and the .NET security analyzers.

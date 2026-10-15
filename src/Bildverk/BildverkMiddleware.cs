@@ -239,7 +239,7 @@ internal sealed class BildverkMiddleware(
 /// <summary>Caps how many images are processed at once (<see cref="LimitsOptions.MaxConcurrentProcessing"/>).</summary>
 internal sealed class ProcessingGate(IOptions<BildverkOptions> options) : IDisposable
 {
-    private readonly SemaphoreSlim _semaphore = new(Math.Max(1, options.Value.Limits.MaxConcurrentProcessing));
+    private readonly SemaphoreSlim _semaphore = new(Math.Max(1, options.Value.Limits.EffectiveMaxConcurrentProcessing));
 
     public Task WaitAsync(CancellationToken cancellationToken) => _semaphore.WaitAsync(cancellationToken);
 

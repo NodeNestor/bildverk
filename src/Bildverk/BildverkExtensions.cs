@@ -52,7 +52,7 @@ public static class BildverkExtensions
         && o.Cache.MaxSizeMB >= 0
         && o.Limits.MaxWidth > 0 && o.Limits.MaxHeight > 0
         && o.Limits.MaxSourcePixels > 0 && o.Limits.MaxSourceBytes > 0
-        && o.Limits.MaxConcurrentProcessing > 0 && o.Limits.ThreadsPerImage > 0
+        && o.Limits.MaxConcurrentProcessing is null or > 0 && o.Limits.ThreadsPerImage > 0
         && o.Limits.ProcessingTimeout > TimeSpan.Zero && o.Optimize.Timeout > TimeSpan.Zero
         && o.Defaults.Quality is >= 1 and <= 100
         && o.Defaults.WebpEffort is >= 0 and <= 6 && o.Defaults.AvifEffort is >= 0 and <= 9

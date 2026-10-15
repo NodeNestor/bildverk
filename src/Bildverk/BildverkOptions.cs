@@ -178,7 +178,10 @@ public sealed class LimitsOptions
     public long MaxSourceBytes { get; set; } = 100L * 1024 * 1024;
 
     /// <summary>How many images may be processed at the same time. Requires a restart to change.</summary>
-    public int MaxConcurrentProcessing { get; set; } = Environment.ProcessorCount;
+    public int? MaxConcurrentProcessing { get; set; }
+
+    /// <summary><see cref="MaxConcurrentProcessing"/>, or the number of CPU cores when it is not set.</summary>
+    internal int EffectiveMaxConcurrentProcessing => MaxConcurrentProcessing ?? Environment.ProcessorCount;
 
     /// <summary>
     /// libvips worker threads per image. 1 (default) gives the best server throughput: parallelism comes

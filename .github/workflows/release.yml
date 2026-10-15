@@ -1,8 +1,8 @@
 name: Release
 
-# Push a tag like v0.1.0 to publish.
-# Uses NuGet Trusted Publishing (no stored API key): nuget.org has a policy trusting this repo's
-# release.yml, and the secret NUGET_USER holds the nuget.org username (profile name, not the email).
+# Push a tag like v0.1.0 to release: build, test, pack, GitHub release with the .nupkg attached.
+# Publishing to nuget.org is optional and switches on by itself once NuGet Trusted Publishing is set up
+# (a policy on nuget.org trusting this repo's release.yml + the secret NUGET_USER = nuget.org username).
 on:
   push:
     tags: ["v*.*.*"]
@@ -14,6 +14,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      NUGET_USER: ${{ secrets.NUGET_USER }}
     steps:
       - uses: actions/checkout@v4
 
@@ -39,12 +41,14 @@ jobs:
 
       # Short-lived (1 h) API key from nuget.org in exchange for GitHub's OIDC token. Request it right before pushing.
       - name: NuGet login
+        if: env.NUGET_USER != ''
         uses: NuGet/login@v1
         id: nuget
         with:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Publish to NuGet
+        if: env.NUGET_USER != ''
         run: dotnet nuget push "artifacts/*.nupkg" --api-key "${{ steps.nuget.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Release notes from CHANGELOG
