@@ -20,7 +20,6 @@ string[] transforms =
 var hosts = new (string Name, string Dll, int Port)[]
 {
     ("Bildverk", Path.Combine(bench, "BildverkHost/bin/Release/net10.0/BildverkHost.dll"), 5401),
-    ("ImageSharp.Web", Path.Combine(bench, "ImageSharpHost/bin/Release/net10.0/ImageSharpHost.dll"), 5402),
 };
 
 var results = new List<string>();

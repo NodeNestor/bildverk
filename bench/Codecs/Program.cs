@@ -1,9 +1,5 @@
 using System.Diagnostics;
 using NetVips;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.PixelFormats;
-using IsImage = SixLabors.ImageSharp.Image;
 using VImage = NetVips.Image;
 
 // Fair codec comparison: how many bytes does each encoder/setting need to reach the SAME visual quality (SSIM),
@@ -23,13 +19,11 @@ var encoders = new List<Encoder>
     new("vips jpeg plain", (img, q) => img.WriteToBuffer($".jpg[Q={q},keep=none]")),
     new("vips jpeg progressive", (img, q) => img.WriteToBuffer($".jpg[Q={q},optimize_coding=true,interlace=true,keep=none]")),
     new("vips jpeg mozjpeg-trellis", (img, q) => img.WriteToBuffer($".jpg[Q={q},optimize_coding=true,interlace=true,trellis_quant=true,overshoot_deringing=true,optimize_scans=true,quant_table=3,keep=none]")),
-    new("ImageSharp jpeg", (img, q) => IsEncode(img, new JpegEncoder { Quality = q })),
     new("vips webp effort 0 (default)", (img, q) => img.WriteToBuffer($".webp[Q={q},effort=0,keep=none]")),
     new("vips webp effort 2", (img, q) => img.WriteToBuffer($".webp[Q={q},effort=2,keep=none]")),
     new("vips webp effort 4", (img, q) => img.WriteToBuffer($".webp[Q={q},effort=4,keep=none]")),
     new("vips webp effort 6", (img, q) => img.WriteToBuffer($".webp[Q={q},effort=6,keep=none]"), Repeats: 1),
     new("vips webp effort 4 + smart_subsample", (img, q) => img.WriteToBuffer($".webp[Q={q},effort=4,smart_subsample=true,keep=none]")),
-    new("ImageSharp webp (method 4)", (img, q) => IsEncode(img, new WebpEncoder { Quality = q, FileFormat = WebpFileFormatType.Lossy })),
     new("vips avif effort 0 (default)", (img, q) => img.WriteToBuffer($".avif[Q={q},effort=0,keep=none]"), Repeats: 1),
     new("vips avif effort 2", (img, q) => img.WriteToBuffer($".avif[Q={q},effort=2,keep=none]"), Repeats: 1),
     new("vips avif effort 4", (img, q) => img.WriteToBuffer($".avif[Q={q},effort=4,keep=none]"), Repeats: 1, Qs: [40, 50, 60, 70, 80, 90]),
@@ -119,14 +113,5 @@ static double Ssim(VImage refGrey, byte[] encoded)
     return map.Avg();
 }
 
-static byte[] IsEncode(VImage img, SixLabors.ImageSharp.Formats.IImageEncoder encoder)
-{
-    using var rgb = img.Bands == 3 ? img.Copy() : img.ExtractBand(0, n: 3);
-    var pixels = rgb.WriteToMemory();
-    using var image = IsImage.LoadPixelData<Rgb24>(pixels, rgb.Width, rgb.Height);
-    using var ms = new MemoryStream();
-    image.Save(ms, encoder);
-    return ms.ToArray();
-}
 
 record Encoder(string Name, Func<VImage, int, byte[]> Encode, int Repeats = 3, int[]? Qs = null);

@@ -5,10 +5,6 @@ updates:
     directories: ["/src/Bildverk", "/tests/Bildverk.Tests", "/bench/*", "/samples/*"]
     schedule:
       interval: weekly
-    ignore:
-      # bench/ImageSharpHost + bench/Codecs compare against ImageSharp 3.x on purpose
-      # (newer versions refuse to build without a paid licence key).
-      - dependency-name: "SixLabors.*"
     groups:
       all-nuget:
         patterns: ["*"]

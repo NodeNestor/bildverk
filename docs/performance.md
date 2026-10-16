@@ -4,7 +4,7 @@ All numbers were measured on 2026-10-15 on a 24-thread Windows desktop with .NET
 
 ## Compared with ImageSharp.Web
 
-The same 8 high-detail photos (four 4 MP, four 24 MP) were served over loopback HTTP, with both libraries on default settings. ImageSharp.Web 3.2.0 was used, because 3.3.0 and later refuse to build without a Six Labors licence key.
+The same 8 high-detail photos (four 4 MP, four 24 MP) were served over loopback HTTP, with both libraries on default settings. The comparison used ImageSharp.Web 3.2.0, because 3.3.0 and later refuse to build without a Six Labors licence key. That version has known vulnerabilities that are only fixed in the licensed 4.x line, so the ImageSharp side of the harness is not part of this repository; only Bildverk's side is.
 
 | Test | Bildverk | Bildverk + Masters | ImageSharp.Web |
 |---|---|---|---|
@@ -22,10 +22,10 @@ The same 8 high-detail photos (four 4 MP, four 24 MP) were served over loopback 
 - **Defaults favour file size.** They are progressive JPEG and WebP effort 4, so JPEG from small originals is about as fast as ImageSharp but produces smaller files.
 - **Cached requests** run as fast as plain `UseStaticFiles` serving the same bytes.
 
-To run it: put JPEGs in `bench/images/`, build `bench/BildverkHost` and `bench/ImageSharpHost` with `-c Release`, then run
+To measure Bildverk on your own images, put JPEGs in `bench/images/`, build `bench/BildverkHost` and `bench/LoadGen` with `-c Release`, then run
 
 ```sh
-dotnet bench/LoadGen/bin/Release/net10.0/LoadGen.dll bench [Bildverk|ImageSharp.Web]
+dotnet bench/LoadGen/bin/Release/net10.0/LoadGen.dll bench
 ```
 
 ## File size at the same visual quality
@@ -36,12 +36,12 @@ Comparing files at the same `quality=` number is misleading, because every encod
 |---|---|---|
 | JPEG baseline | 100 % | 1× |
 | **JPEG progressive (default)** | **97.7 %** | 2.7× |
-| ImageSharp JPEG | 101.3 % | 1.0× |
+| ImageSharp JPEG (measured separately) | 101.3 % | 1.0× |
 | WebP effort 0 | 85.8 % | 3.4× |
 | WebP effort 2 | 72.1 % | 5.3× |
 | **WebP effort 4 (default)** | **67.7 %** | 11.5× |
 | WebP effort 6 | 67.6 % | 25.6× |
-| ImageSharp WebP | 67.5 % | 36.3× |
+| ImageSharp WebP (measured separately) | 67.5 % | 36.3× |
 | AVIF effort 0 (first response) | 69.8 % | 7.1× |
 | AVIF effort 2 | 62.0 % | 37.6× |
 | **AVIF effort 4 (after background optimize)** | **56.5 %** | 322× |
